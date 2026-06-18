@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swiss pairing | sachyuh.cz</title>
+  <link rel="stylesheet" href="pairing.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Local bbpPairings GUI</p>
+      <h1>Swiss pairing</h1>
+    </div>
+    <div class="engine-status" id="engineStatus">Checking engine...</div>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel players-panel" aria-labelledby="playersTitle">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Setup</p>
+          <h2 id="playersTitle">Players</h2>
+        </div>
+        <div class="button-row">
+          <button type="button" id="loadSampleButton">Load sample</button>
+          <button type="button" id="sortPlayersButton">Sort by rating</button>
+          <button type="button" id="clearButton" class="danger">Clear</button>
+        </div>
+      </div>
+
+      <label class="field-label" for="playersInput">One player per line: name;rating</label>
+      <textarea id="playersInput" spellcheck="false" rows="12"></textarea>
+      <div class="button-row">
+        <button type="button" id="savePlayersButton">Save players</button>
+        <button type="button" id="generateButton" class="primary">Generate next round</button>
+      </div>
+      <p class="hint">Pairing numbers follow the current order. Use Sort by rating before round 1 if rating is the seed order.</p>
+    </section>
+
+    <section class="panel current-panel" aria-labelledby="currentTitle">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Next</p>
+          <h2 id="currentTitle">Current pairings</h2>
+        </div>
+        <button type="button" id="saveRoundButton" class="primary">Save round results</button>
+      </div>
+      <div id="currentRound" class="empty-state">No pairings generated yet.</div>
+    </section>
+
+    <section class="panel history-panel" aria-labelledby="historyTitle">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Tournament</p>
+          <h2 id="historyTitle">Rounds</h2>
+        </div>
+        <button type="button" id="exportButton">Export JSON</button>
+      </div>
+      <div id="roundsHistory" class="empty-state">No saved rounds yet.</div>
+    </section>
+  </main>
+
+  <dialog id="exportDialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Export JSON</h2>
+      <textarea id="exportOutput" spellcheck="false" rows="12"></textarea>
+      <div class="button-row">
+        <button type="button" id="copyExportButton">Copy</button>
+        <button type="submit" class="primary">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="pairing.js"></script>
+</body>
+</html>
