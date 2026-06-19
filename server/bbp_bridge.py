@@ -3,6 +3,7 @@ import os
 import platform
 import subprocess
 import tempfile
+import unicodedata
 from pathlib import Path
 
 
@@ -130,7 +131,8 @@ def compute_scores_and_entries(players, rounds):
 
 def trf_player_line(player, score, rank, entries):
     pairing_number = player["pairingNumber"]
-    name = player["name"][:34]
+    name = unicodedata.normalize("NFKD", player["name"])
+    name = name.encode("ascii", "ignore").decode("ascii")[:34]
     rating = max(0, min(9999, int(player["ratingFinal"])))
     head = f"001 {pairing_number:4d}      {name:<34s}{rating:4d}"
     head += " " * (80 - len(head))
