@@ -48,6 +48,19 @@ Response:
 
 For Linux deployment, use the Linux `bbpPairings` binary and set `BBP_PAIRINGS_EXE` to that path.
 
+## Import and export
+
+The GUI can export:
+
+- full tournament state as JSON, suitable for later import
+- start list as CSV
+- standings as CSV
+- round results as CSV
+- printable PDF output through the browser print dialog
+
+The full JSON export restores the start list, saved rounds, and any currently generated unsaved round.
+The start-list CSV import intentionally clears saved rounds because player IDs are derived from the imported names.
+
 ## Tests
 
 The integration tests run simulated tournaments against the real `bbpPairings` engine.

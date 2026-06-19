@@ -60,6 +60,12 @@ button.danger {
   color: var(--danger);
 }
 
+button.small-button {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 textarea {
   width: 100%;
   min-height: 180px;
@@ -165,6 +171,10 @@ select {
   align-items: center;
 }
 
+.tool-row {
+  margin: -4px 0 14px;
+}
+
 .field-label {
   display: block;
   margin: 0 0 6px;
@@ -225,8 +235,16 @@ select {
   margin-bottom: 18px;
 }
 
-.round-block h3 {
+.round-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
   margin: 0 0 8px;
+}
+
+.round-block h3 {
+  margin: 0;
   font-size: 17px;
 }
 
@@ -321,6 +339,10 @@ dialog::backdrop {
   }
 
   .panel-heading {
+    display: grid;
+  }
+
+  .round-heading {
     display: grid;
   }
 

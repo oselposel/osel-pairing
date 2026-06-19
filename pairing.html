@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Swiss pairing | sachyuh.cz</title>
-  <link rel="stylesheet" href="pairing.css">
+  <link rel="stylesheet" href="pairing.css?v=20260619">
 </head>
 <body>
   <header class="app-header">
@@ -55,17 +55,31 @@
           <p class="eyebrow">Tournament</p>
           <h2 id="historyTitle">Rounds</h2>
         </div>
-        <button type="button" id="exportButton">Export JSON</button>
+        <div class="button-row">
+          <button type="button" id="exportButton">Export JSON</button>
+          <button type="button" id="importButton">Import JSON</button>
+          <button type="button" id="printButton">PDF</button>
+        </div>
+      </div>
+      <div class="button-row tool-row" aria-label="Tournament data tools">
+        <button type="button" id="exportPlayersButton">Start list CSV</button>
+        <button type="button" id="importPlayersButton">Import start list</button>
+        <button type="button" id="exportStandingsButton">Standings CSV</button>
+        <button type="button" id="exportRoundsButton">Rounds CSV</button>
       </div>
       <div id="roundsHistory" class="empty-state">No saved rounds yet.</div>
     </section>
   </main>
+
+  <input type="file" id="importFileInput" accept="application/json,.json" hidden>
+  <input type="file" id="importPlayersInput" accept=".csv,text/csv,text/plain" hidden>
 
   <dialog id="exportDialog">
     <form method="dialog" class="dialog-body">
       <h2>Export JSON</h2>
       <textarea id="exportOutput" spellcheck="false" rows="12"></textarea>
       <div class="button-row">
+        <button type="button" id="downloadExportButton">Download</button>
         <button type="button" id="copyExportButton">Copy</button>
         <button type="submit" class="primary">Close</button>
       </div>
@@ -73,6 +87,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="pairing.js"></script>
+  <script type="module" src="pairing.js?v=20260619"></script>
 </body>
 </html>
