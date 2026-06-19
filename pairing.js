@@ -70,6 +70,7 @@ let state = {
 };
 
 let isReferee = sessionStorage.getItem('osel.referee') === '1';
+let editingRoundIndex = null;
 
 function showToast(message, type = '') {
   elements.toast.textContent = message;
@@ -335,13 +336,20 @@ function renderHistory(players) {
     return;
   }
   elements.roundsHistory.className = '';
-  elements.roundsHistory.innerHTML = state.rounds.map((round, roundIndex) => `
+  elements.roundsHistory.innerHTML = state.rounds.map((round, roundIndex) => {
+    const isEditing = isReferee && editingRoundIndex === roundIndex;
+    return `
     <div class="round-block">
       <div class="round-heading">
         <h3>Kolo ${round.round}</h3>
         ${isReferee ? `
           <div class="button-row">
-            <button type="button" class="small-button" data-reopen-round="${roundIndex}">Opravit kolo</button>
+            ${isEditing ? `
+              <button type="button" class="small-button primary" data-save-round-edit="${roundIndex}">Uložit opravu</button>
+              <button type="button" class="small-button" data-cancel-round-edit>Zrušit</button>
+            ` : `
+              <button type="button" class="small-button" data-edit-round="${roundIndex}">Upravit výsledky</button>
+            `}
             <button type="button" class="small-button" data-truncate-round="${roundIndex}">Vrátit po kole</button>
           </div>
         ` : ''}
@@ -367,14 +375,23 @@ function renderHistory(players) {
                 <td>${index + 1}</td>
                 <td>${escapeHtml(playerNameById(players, pairing.whiteId))}</td>
                 <td>${escapeHtml(playerNameById(players, pairing.blackId))}</td>
-                <td>${escapeHtml(pairing.result)}</td>
+                <td>
+                  ${isEditing ? `
+                    <select data-edit-round="${roundIndex}" data-edit-pairing="${index}" aria-label="Výsledek kola ${round.round}, šachovnice ${index + 1}">
+                      ${RESULT_OPTIONS.map((option) => `
+                        <option value="${option}" ${pairing.result === option ? 'selected' : ''}>${option}</option>
+                      `).join('')}
+                    </select>
+                  ` : escapeHtml(pairing.result)}
+                </td>
               </tr>
             `;
           }).join('')}
         </tbody>
       </table>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderAdminState() {
@@ -691,6 +708,7 @@ function printTournamentPdf() {
 }
 
 async function truncateThroughRound(roundIndex) {
+  editingRoundIndex = null;
   state.rounds = state.rounds.slice(0, roundIndex + 1);
   state.currentPairings = [];
   await persistState(`Turnaj vrácen po kole ${roundIndex + 1}.`);
@@ -717,6 +735,44 @@ async function reopenRound(roundIndex) {
     };
   });
   await persistState(`Kolo ${roundIndex + 1} otevřeno k opravě.`);
+}
+
+async function saveRoundEdit(roundIndex) {
+  const round = state.rounds[roundIndex];
+  if (!round) return;
+
+  const hasFutureData = roundIndex < state.rounds.length - 1 || state.currentPairings.length > 0;
+  if (hasFutureData && !window.confirm(`Uložit opravu kola ${roundIndex + 1}? Pozdější kola a aktuální nasazení se odstraní.`)) {
+    return;
+  }
+
+  const editedPairings = round.pairings.map((pairing, pairingIndex) => {
+    if (pairing.byeId) {
+      return { byeId: pairing.byeId, result: 'bye' };
+    }
+    const select = elements.roundsHistory.querySelector(
+      `select[data-edit-round="${roundIndex}"][data-edit-pairing="${pairingIndex}"]`,
+    );
+    return {
+      whiteId: pairing.whiteId,
+      blackId: pairing.blackId,
+      result: select?.value || pairing.result,
+    };
+  });
+
+  state.rounds = state.rounds.slice(0, roundIndex + 1);
+  state.rounds[roundIndex] = {
+    ...round,
+    pairings: editedPairings,
+  };
+  state.currentPairings = [];
+  editingRoundIndex = null;
+  await persistState(`Výsledky kola ${roundIndex + 1} opraveny.`);
+}
+
+function cancelRoundEdit() {
+  editingRoundIndex = null;
+  renderAll();
 }
 
 function setActiveTab(tabName) {
@@ -818,12 +874,21 @@ elements.copyExportButton.addEventListener('click', async () => {
   showToast('Export zkopírován.');
 });
 elements.roundsHistory.addEventListener('click', (event) => {
-  const reopenButton = event.target.closest('[data-reopen-round]');
-  if (reopenButton) {
-    const roundIndex = Number.parseInt(reopenButton.dataset.reopenRound, 10);
-    if (window.confirm(`Otevřít kolo ${roundIndex + 1} k opravě? Pozdější kola se odstraní.`)) {
-      reopenRound(roundIndex).catch((error) => showToast(error.message, 'error'));
-    }
+  const editButton = event.target.closest('[data-edit-round]');
+  if (editButton && editButton.tagName === 'BUTTON') {
+    editingRoundIndex = Number.parseInt(editButton.dataset.editRound, 10);
+    renderAll();
+    return;
+  }
+  const saveEditButton = event.target.closest('[data-save-round-edit]');
+  if (saveEditButton) {
+    const roundIndex = Number.parseInt(saveEditButton.dataset.saveRoundEdit, 10);
+    saveRoundEdit(roundIndex).catch((error) => showToast(error.message, 'error'));
+    return;
+  }
+  const cancelEditButton = event.target.closest('[data-cancel-round-edit]');
+  if (cancelEditButton) {
+    cancelRoundEdit();
     return;
   }
   const truncateButton = event.target.closest('[data-truncate-round]');
