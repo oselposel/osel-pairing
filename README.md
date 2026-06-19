@@ -48,6 +48,15 @@ Response:
 
 For Linux deployment, use the Linux `bbpPairings` binary and set `BBP_PAIRINGS_EXE` to that path.
 
+## Tests
+
+The integration tests run simulated tournaments against the real `bbpPairings` engine.
+
+```powershell
+$env:BBP_PAIRINGS_EXE="C:\path\to\bbpPairings.exe"
+python -m unittest discover -s tests -v
+```
+
 ## Docker
 
 The Docker image downloads the Linux `bbpPairings` release during build.

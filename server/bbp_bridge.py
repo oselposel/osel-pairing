@@ -185,10 +185,13 @@ def parse_pairing_output(output_text, players):
         white_number = int(parts[0])
         black_number = int(parts[1])
         white = players_by_number.get(white_number)
-        black = players_by_number.get(black_number)
-        if not white or not black:
+        if black_number == 0:
+            black = None
+        else:
+            black = players_by_number.get(black_number)
+        if not white or (black_number != 0 and not black):
             raise BbpPairingError(f"Unknown pairing number in output: {line}")
-        if white_number == black_number:
+        if black_number == 0 or white_number == black_number:
             pairings.append({
                 "byeId": white["id"],
                 "byeName": white["name"],
