@@ -1,8 +1,24 @@
-const STORAGE_KEY = 'sachyuh.pairing.state.v1';
+const REFEREE_PASSWORD = '11';
 const RESULT_OPTIONS = ['1-0', '0.5-0.5', '0-1'];
 
 const elements = {
   engineStatus: document.getElementById('engineStatus'),
+  menuButton: document.getElementById('menuButton'),
+  menuPanel: document.getElementById('menuPanel'),
+  loginBox: document.getElementById('loginBox'),
+  refereeBox: document.getElementById('refereeBox'),
+  passwordInput: document.getElementById('passwordInput'),
+  loginButton: document.getElementById('loginButton'),
+  logoutButton: document.getElementById('logoutButton'),
+  refreshButton: document.getElementById('refreshButton'),
+  tabsNav: document.getElementById('tabsNav'),
+  tabButtons: document.querySelectorAll('[data-tab]'),
+  overviewTab: document.getElementById('overviewTab'),
+  roundsTab: document.getElementById('roundsTab'),
+  startlistTab: document.getElementById('startlistTab'),
+  adminPanel: document.getElementById('adminPanel'),
+  standingsView: document.getElementById('standingsView'),
+  startListView: document.getElementById('startListView'),
   playersInput: document.getElementById('playersInput'),
   loadSampleButton: document.getElementById('loadSampleButton'),
   sortPlayersButton: document.getElementById('sortPlayersButton'),
@@ -30,16 +46,16 @@ const elements = {
 
 const samplePlayers = [
   ['Nikola', 16],
-  ['Jiri', 15],
+  ['Jiří', 15],
   ['Attila', 14],
-  ['Jan Bulhar', 13],
+  ['Jan Bulhař', 13],
   ['e2e4', 12],
-  ['David Lukastik', 11],
-  ['Adela', 10],
-  ['Tomas Lajsek', 9],
-  ['Karel Machu', 8],
+  ['David Lukaštík', 11],
+  ['Adéla', 10],
+  ['Tomáš Lajsek', 9],
+  ['Karel Machů', 8],
   ['Albert Beatus', 7],
-  ['Jarek Shanel', 6],
+  ['Jarek Sháněl', 6],
   ['Roman Omelka', 5],
   ['Vasyl', 4],
   ['VW3TY', 3],
@@ -52,6 +68,8 @@ let state = {
   rounds: [],
   currentPairings: [],
 };
+
+let isReferee = sessionStorage.getItem('osel.referee') === '1';
 
 function showToast(message, type = '') {
   elements.toast.textContent = message;
@@ -74,17 +92,24 @@ function parsePlayers(text) {
     .map((line) => {
       const [rawName, rawRating = '0'] = line.split(';');
       const name = rawName.trim();
-      const ratingFinal = Number.parseInt(rawRating.trim(), 10) || 0;
       return {
         id: playerIdFromName(name),
         name,
-        ratingFinal,
+        ratingFinal: Number.parseInt(rawRating.trim(), 10) || 0,
       };
     });
 }
 
 function formatPlayers(players) {
   return players.map((player) => `${player.name};${player.ratingFinal}`).join('\n');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function csvEscape(value) {
@@ -153,33 +178,14 @@ function downloadText(filename, content, type) {
   URL.revokeObjectURL(url);
 }
 
-function saveState() {
-  state.playersText = elements.playersInput.value;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try {
-      state = { ...state, ...JSON.parse(raw) };
-    } catch {
-      state = { playersText: '', rounds: [], currentPairings: [] };
-    }
-  }
-  elements.playersInput.value = state.playersText;
+function playerNameById(players, id) {
+  return players.find((player) => player.id === id)?.name || id;
 }
 
 function scoreFromResult(result) {
-  if (result === '1-0') {
-    return [1, 0];
-  }
-  if (result === '0-1') {
-    return [0, 1];
-  }
-  if (result === '0.5-0.5') {
-    return [0.5, 0.5];
-  }
+  if (result === '1-0') return [1, 0];
+  if (result === '0-1') return [0, 1];
+  if (result === '0.5-0.5') return [0.5, 0.5];
   return [0, 0];
 }
 
@@ -207,7 +213,7 @@ function getStandings(players) {
       if (scoreDiff !== 0) return scoreDiff;
       const ratingDiff = (b.ratingFinal || 0) - (a.ratingFinal || 0);
       if (ratingDiff !== 0) return ratingDiff;
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name, 'cs');
     })
     .map((player, index) => ({
       rank: index + 1,
@@ -221,38 +227,59 @@ function getStandings(players) {
 function renderStandings(players) {
   const standings = getStandings(players);
   if (!standings.length) {
-    return '';
+    elements.standingsView.className = 'empty-state';
+    elements.standingsView.textContent = 'Zatím nejsou zadaní hráči.';
+    return;
   }
-  return `
-    <div class="standings">
-      ${standings.map((player) => `
-        <div class="standings-row">
-          <span>${player.rank}.</span>
-          <span>${escapeHtml(player.name)}</span>
-          <strong>${player.score}</strong>
-        </div>
-      `).join('')}
-    </div>
+  elements.standingsView.className = '';
+  elements.standingsView.innerHTML = `
+    <table class="standings-table">
+      <thead>
+        <tr><th>#</th><th>Hráč</th><th>Rating</th><th>Body</th></tr>
+      </thead>
+      <tbody>
+        ${standings.map((player) => `
+          <tr>
+            <td>${player.rank}</td>
+            <td>${escapeHtml(player.name)}</td>
+            <td>${player.ratingFinal}</td>
+            <td><strong>${player.score}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
   `;
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+function renderStartList(players) {
+  if (!players.length) {
+    elements.startListView.className = 'empty-state';
+    elements.startListView.textContent = 'Startovní listina je prázdná.';
+    return;
+  }
+  elements.startListView.className = '';
+  elements.startListView.innerHTML = `
+    <table class="start-table">
+      <thead>
+        <tr><th>#</th><th>Hráč</th><th>Rating</th></tr>
+      </thead>
+      <tbody>
+        ${players.map((player, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(player.name)}</td>
+            <td>${player.ratingFinal}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
-function playerNameById(players, id) {
-  return players.find((player) => player.id === id)?.name || id;
-}
-
-function renderCurrentRound() {
-  const players = parsePlayers(elements.playersInput.value);
+function renderCurrentRound(players) {
   if (!state.currentPairings.length) {
     elements.currentRound.className = 'empty-state';
-    elements.currentRound.textContent = 'No pairings generated yet.';
+    elements.currentRound.textContent = 'Další kolo zatím není nasazeno.';
     return;
   }
   elements.currentRound.className = '';
@@ -260,37 +287,39 @@ function renderCurrentRound() {
     <table class="pairing-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>White</th>
-          <th>Black</th>
-          <th class="result-cell">Result</th>
+          <th>Šach.</th>
+          <th>Bílý</th>
+          <th>Černý</th>
+          ${isReferee ? '<th class="result-cell">Výsledek</th>' : ''}
         </tr>
       </thead>
       <tbody>
         ${state.currentPairings.map((pairing, index) => {
           if (pairing.byeId) {
             return `
-              <tr data-index="${index}">
+              <tr>
                 <td>${index + 1}</td>
                 <td>${escapeHtml(pairing.byeName || playerNameById(players, pairing.byeId))}</td>
-                <td>BYE</td>
-                <td>bye</td>
+                <td>volno</td>
+                ${isReferee ? '<td>bye</td>' : ''}
               </tr>
             `;
           }
           return `
-            <tr data-index="${index}">
+            <tr>
               <td>${index + 1}</td>
               <td>${escapeHtml(pairing.whiteName || playerNameById(players, pairing.whiteId))}</td>
               <td>${escapeHtml(pairing.blackName || playerNameById(players, pairing.blackId))}</td>
-              <td>
-                <select data-result-index="${index}" aria-label="Result for board ${index + 1}">
-                  <option value="">Select</option>
-                  ${RESULT_OPTIONS.map((option) => `
-                    <option value="${option}" ${pairing.result === option ? 'selected' : ''}>${option}</option>
-                  `).join('')}
-                </select>
-              </td>
+              ${isReferee ? `
+                <td>
+                  <select data-result-index="${index}" aria-label="Výsledek na šachovnici ${index + 1}">
+                    <option value="">Vybrat</option>
+                    ${RESULT_OPTIONS.map((option) => `
+                      <option value="${option}" ${pairing.result === option ? 'selected' : ''}>${option}</option>
+                    `).join('')}
+                  </select>
+                </td>
+              ` : ''}
             </tr>
           `;
         }).join('')}
@@ -299,65 +328,71 @@ function renderCurrentRound() {
   `;
 }
 
-function renderHistory() {
-  const players = parsePlayers(elements.playersInput.value);
+function renderHistory(players) {
   if (!state.rounds.length) {
     elements.roundsHistory.className = 'empty-state';
-    elements.roundsHistory.textContent = 'No saved rounds yet.';
+    elements.roundsHistory.textContent = 'Zatím není uložené žádné kolo.';
     return;
   }
   elements.roundsHistory.className = '';
-  elements.roundsHistory.innerHTML = `
-    ${renderStandings(players)}
-    ${state.rounds.map((round, roundIndex) => `
-      <div class="round-block">
-        <div class="round-heading">
-          <h3>Round ${round.round}</h3>
+  elements.roundsHistory.innerHTML = state.rounds.map((round, roundIndex) => `
+    <div class="round-block">
+      <div class="round-heading">
+        <h3>Kolo ${round.round}</h3>
+        ${isReferee ? `
           <div class="button-row">
-            <button type="button" class="small-button" data-reopen-round="${roundIndex}">Reopen</button>
-            <button type="button" class="small-button" data-truncate-round="${roundIndex}">Keep through</button>
+            <button type="button" class="small-button" data-reopen-round="${roundIndex}">Opravit kolo</button>
+            <button type="button" class="small-button" data-truncate-round="${roundIndex}">Vrátit po kole</button>
           </div>
-        </div>
-        <table class="round-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>White</th>
-              <th>Black</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${round.pairings.map((pairing, index) => {
-              if (pairing.byeId) {
-                return `
-                  <tr>
-                    <td>${index + 1}</td>
-                    <td>${escapeHtml(playerNameById(players, pairing.byeId))}</td>
-                    <td>BYE</td>
-                    <td>bye</td>
-                  </tr>
-                `;
-              }
+        ` : ''}
+      </div>
+      <table class="round-table">
+        <thead>
+          <tr><th>Šach.</th><th>Bílý</th><th>Černý</th><th>Výsledek</th></tr>
+        </thead>
+        <tbody>
+          ${round.pairings.map((pairing, index) => {
+            if (pairing.byeId) {
               return `
                 <tr>
                   <td>${index + 1}</td>
-                  <td>${escapeHtml(playerNameById(players, pairing.whiteId))}</td>
-                  <td>${escapeHtml(playerNameById(players, pairing.blackId))}</td>
-                  <td>${escapeHtml(pairing.result)}</td>
+                  <td>${escapeHtml(playerNameById(players, pairing.byeId))}</td>
+                  <td>volno</td>
+                  <td>bye</td>
                 </tr>
               `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    `).join('')}
-  `;
+            }
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(playerNameById(players, pairing.whiteId))}</td>
+                <td>${escapeHtml(playerNameById(players, pairing.blackId))}</td>
+                <td>${escapeHtml(pairing.result)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+}
+
+function renderAdminState() {
+  elements.adminPanel.hidden = !isReferee;
+  elements.loginBox.hidden = isReferee;
+  elements.refereeBox.hidden = !isReferee;
+  if (isReferee) {
+    elements.playersInput.value = state.playersText;
+  }
 }
 
 function renderAll() {
-  renderCurrentRound();
-  renderHistory();
+  const players = parsePlayers(state.playersText);
+  renderAdminState();
+  renderCurrentRound(players);
+  renderStandings(players);
+  renderHistory(players);
+  renderStartList(players);
 }
 
 async function checkEngine() {
@@ -365,9 +400,9 @@ async function checkEngine() {
     const response = await fetch('/api/health', { cache: 'no-store' });
     const payload = await response.json();
     if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || 'Engine not ready.');
+      throw new Error(payload.error || 'Párovací program není připraven.');
     }
-    elements.engineStatus.textContent = `Engine ready: ${payload.engine}`;
+    elements.engineStatus.textContent = 'Párovací program je připraven';
     elements.engineStatus.className = 'engine-status ok';
   } catch (error) {
     elements.engineStatus.textContent = error.message;
@@ -375,13 +410,59 @@ async function checkEngine() {
   }
 }
 
+async function loadSharedState(showMessage = false) {
+  const response = await fetch('/api/state', { cache: 'no-store' });
+  const payload = await response.json();
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.error || 'Nepodařilo se načíst turnaj.');
+  }
+  state = {
+    playersText: payload.state.playersText || '',
+    rounds: Array.isArray(payload.state.rounds) ? payload.state.rounds : [],
+    currentPairings: Array.isArray(payload.state.currentPairings) ? payload.state.currentPairings : [],
+  };
+  renderAll();
+  if (showMessage) {
+    showToast('Turnaj obnoven ze serveru.');
+  }
+}
+
+async function persistState(message = 'Uloženo.') {
+  if (!isReferee) {
+    throw new Error('Pro ukládání se přihlaste jako rozhodčí.');
+  }
+  const response = await fetch('/api/state', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Referee-Password': REFEREE_PASSWORD,
+    },
+    body: JSON.stringify(state),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.error || 'Nepodařilo se uložit turnaj.');
+  }
+  state = payload.state;
+  renderAll();
+  if (message) {
+    showToast(message);
+  }
+}
+
+async function savePlayers() {
+  state.playersText = elements.playersInput.value;
+  state.currentPairings = [];
+  await persistState('Hráči uloženi.');
+}
+
 async function generatePairings() {
   const players = parsePlayers(elements.playersInput.value);
   if (players.length < 2) {
-    showToast('Add at least two players.', 'warn');
+    showToast('Zadejte alespoň dva hráče.', 'warn');
     return;
   }
-  saveState();
+  state.playersText = elements.playersInput.value;
   elements.generateButton.disabled = true;
   try {
     const response = await fetch('/api/pairings', {
@@ -395,12 +476,10 @@ async function generatePairings() {
     });
     const payload = await response.json();
     if (!response.ok || !payload.success) {
-      throw new Error(payload.error || 'Pairing failed.');
+      throw new Error(payload.error || 'Párování selhalo.');
     }
     state.currentPairings = payload.pairings;
-    saveState();
-    renderAll();
-    showToast(`Round ${state.rounds.length + 1} generated.`);
+    await persistState(`Kolo ${state.rounds.length + 1} vygenerováno.`);
   } catch (error) {
     showToast(error.message, 'error');
   } finally {
@@ -415,17 +494,15 @@ function syncCurrentResults() {
   });
 }
 
-function saveRoundResults() {
+async function saveRoundResults() {
   if (!state.currentPairings.length) {
-    showToast('Generate pairings first.', 'warn');
+    showToast('Nejdřív vygenerujte kolo.', 'warn');
     return;
   }
   syncCurrentResults();
-  const incomplete = state.currentPairings.some((pairing) => (
-    !pairing.byeId && !pairing.result
-  ));
+  const incomplete = state.currentPairings.some((pairing) => !pairing.byeId && !pairing.result);
   if (incomplete) {
-    showToast('Fill every result before saving the round.', 'warn');
+    showToast('Doplňte všechny výsledky.', 'warn');
     return;
   }
   state.rounds.push({
@@ -442,16 +519,13 @@ function saveRoundResults() {
     }),
   });
   state.currentPairings = [];
-  saveState();
-  renderAll();
-  showToast('Round saved.');
+  await persistState('Výsledky kola uloženy.');
 }
 
 function tournamentExport() {
-  state.playersText = elements.playersInput.value;
   return {
     format: 'osel-pairing-tournament',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     playersText: state.playersText,
     players: parsePlayers(state.playersText),
@@ -467,56 +541,35 @@ function exportState() {
 
 function downloadTournamentJson() {
   downloadText(
-    `osel-pairing-tournament-${safeTimestamp()}.json`,
+    `turnaj-${safeTimestamp()}.json`,
     JSON.stringify(tournamentExport(), null, 2),
     'application/json;charset=utf-8',
   );
 }
 
 function exportPlayersCsv() {
-  const players = parsePlayers(elements.playersInput.value);
   const rows = [
-    ['name', 'ratingFinal'],
-    ...players.map((player) => [player.name, player.ratingFinal]),
+    ['jmeno', 'rating'],
+    ...parsePlayers(state.playersText).map((player) => [player.name, player.ratingFinal]),
   ];
-  downloadText(
-    `start-list-${safeTimestamp()}.csv`,
-    rows.map((row) => row.map(csvEscape).join(';')).join('\n'),
-    'text/csv;charset=utf-8',
-  );
+  downloadText(`startovni-listina-${safeTimestamp()}.csv`, rows.map((row) => row.map(csvEscape).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
 
 function exportStandingsCsv() {
-  const players = parsePlayers(elements.playersInput.value);
   const rows = [
-    ['rank', 'name', 'ratingFinal', 'score'],
-    ...getStandings(players).map((player) => [
-      player.rank,
-      player.name,
-      player.ratingFinal,
-      player.score,
-    ]),
+    ['poradi', 'jmeno', 'rating', 'body'],
+    ...getStandings(parsePlayers(state.playersText)).map((player) => [player.rank, player.name, player.ratingFinal, player.score]),
   ];
-  downloadText(
-    `standings-${safeTimestamp()}.csv`,
-    rows.map((row) => row.map(csvEscape).join(';')).join('\n'),
-    'text/csv;charset=utf-8',
-  );
+  downloadText(`poradi-${safeTimestamp()}.csv`, rows.map((row) => row.map(csvEscape).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
 
 function exportRoundsCsv() {
-  const players = parsePlayers(elements.playersInput.value);
-  const rows = [['round', 'board', 'white', 'black', 'result']];
+  const players = parsePlayers(state.playersText);
+  const rows = [['kolo', 'sachovnice', 'bily', 'cerny', 'vysledek']];
   state.rounds.forEach((round) => {
     round.pairings.forEach((pairing, index) => {
       if (pairing.byeId) {
-        rows.push([
-          round.round,
-          index + 1,
-          playerNameById(players, pairing.byeId),
-          'BYE',
-          'bye',
-        ]);
+        rows.push([round.round, index + 1, playerNameById(players, pairing.byeId), 'volno', 'bye']);
         return;
       }
       rows.push([
@@ -528,67 +581,54 @@ function exportRoundsCsv() {
       ]);
     });
   });
-  downloadText(
-    `round-results-${safeTimestamp()}.csv`,
-    rows.map((row) => row.map(csvEscape).join(';')).join('\n'),
-    'text/csv;charset=utf-8',
-  );
+  downloadText(`vysledky-kol-${safeTimestamp()}.csv`, rows.map((row) => row.map(csvEscape).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
 
-function importTournament(payload) {
+async function importTournament(payload) {
   const playersText = payload.playersText || (
     Array.isArray(payload.players) ? formatPlayers(payload.players) : ''
   );
   if (!playersText.trim()) {
-    throw new Error('Import does not contain a start list.');
+    throw new Error('Import neobsahuje startovní listinu.');
   }
-  const importedRounds = Array.isArray(payload.rounds) ? payload.rounds : [];
-  const importedCurrent = Array.isArray(payload.currentPairings) ? payload.currentPairings : [];
   state = {
     playersText,
-    rounds: importedRounds,
-    currentPairings: importedCurrent,
+    rounds: Array.isArray(payload.rounds) ? payload.rounds : [],
+    currentPairings: Array.isArray(payload.currentPairings) ? payload.currentPairings : [],
   };
-  elements.playersInput.value = playersText;
-  saveState();
-  renderAll();
+  await persistState('Turnaj importován.');
 }
 
 async function importTournamentFile(file) {
-  const text = await file.text();
-  importTournament(JSON.parse(text));
-  showToast('Tournament imported.');
+  await importTournament(JSON.parse(await file.text()));
 }
 
 async function importPlayersFile(file) {
   if ((state.rounds.length || state.currentPairings.length)
-    && !window.confirm('Importing a start list clears saved rounds and current pairings. Continue?')) {
+    && !window.confirm('Import startovní listiny smaže uložená kola a aktuální nasazení. Pokračovat?')) {
     return;
   }
   const players = parsePlayersCsv(await file.text());
   if (players.length < 2) {
-    throw new Error('Start list import needs at least two players.');
+    throw new Error('Startovní listina musí obsahovat alespoň dva hráče.');
   }
   state = {
     playersText: formatPlayers(players),
     rounds: [],
     currentPairings: [],
   };
-  elements.playersInput.value = state.playersText;
-  saveState();
-  renderAll();
-  showToast('Start list imported.');
+  await persistState('Startovní listina importována.');
 }
 
 function buildPrintDocument() {
-  const players = parsePlayers(elements.playersInput.value);
+  const players = parsePlayers(state.playersText);
   const standings = getStandings(players);
   return `
     <!doctype html>
-    <html>
+    <html lang="cs">
     <head>
       <meta charset="utf-8">
-      <title>Swiss pairing export</title>
+      <title>Export turnaje</title>
       <style>
         body { font-family: Arial, sans-serif; color: #111; margin: 28px; }
         h1 { margin: 0 0 4px; font-size: 24px; }
@@ -601,35 +641,31 @@ function buildPrintDocument() {
       </style>
     </head>
     <body>
-      <h1>Swiss pairing export</h1>
-      <p>${new Date().toLocaleString()}</p>
-      <h2>Start list</h2>
+      <h1>Export turnaje</h1>
+      <p>${new Date().toLocaleString('cs-CZ')}</p>
+      <h2>Startovní listina</h2>
       <table>
-        <thead><tr><th>#</th><th>Name</th><th>Rating</th></tr></thead>
+        <thead><tr><th>#</th><th>Hráč</th><th>Rating</th></tr></thead>
         <tbody>
-          ${players.map((player, index) => `
-            <tr><td>${index + 1}</td><td>${escapeHtml(player.name)}</td><td>${player.ratingFinal}</td></tr>
-          `).join('')}
+          ${players.map((player, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(player.name)}</td><td>${player.ratingFinal}</td></tr>`).join('')}
         </tbody>
       </table>
-      <h2>Standings</h2>
+      <h2>Pořadí</h2>
       <table>
-        <thead><tr><th>Rank</th><th>Name</th><th>Rating</th><th>Score</th></tr></thead>
+        <thead><tr><th>#</th><th>Hráč</th><th>Rating</th><th>Body</th></tr></thead>
         <tbody>
-          ${standings.map((player) => `
-            <tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.ratingFinal}</td><td>${player.score}</td></tr>
-          `).join('')}
+          ${standings.map((player) => `<tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.ratingFinal}</td><td>${player.score}</td></tr>`).join('')}
         </tbody>
       </table>
-      <h2 class="page-break">Rounds</h2>
+      <h2 class="page-break">Výsledky kol</h2>
       ${state.rounds.map((round) => `
-        <h2>Round ${round.round}</h2>
+        <h2>Kolo ${round.round}</h2>
         <table>
-          <thead><tr><th>#</th><th>White</th><th>Black</th><th>Result</th></tr></thead>
+          <thead><tr><th>Šach.</th><th>Bílý</th><th>Černý</th><th>Výsledek</th></tr></thead>
           <tbody>
             ${round.pairings.map((pairing, index) => {
               if (pairing.byeId) {
-                return `<tr><td>${index + 1}</td><td>${escapeHtml(playerNameById(players, pairing.byeId))}</td><td>BYE</td><td>bye</td></tr>`;
+                return `<tr><td>${index + 1}</td><td>${escapeHtml(playerNameById(players, pairing.byeId))}</td><td>volno</td><td>bye</td></tr>`;
               }
               return `<tr><td>${index + 1}</td><td>${escapeHtml(playerNameById(players, pairing.whiteId))}</td><td>${escapeHtml(playerNameById(players, pairing.blackId))}</td><td>${escapeHtml(pairing.result)}</td></tr>`;
             }).join('')}
@@ -644,7 +680,7 @@ function buildPrintDocument() {
 function printTournamentPdf() {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    showToast('Popup was blocked. Allow popups to print PDF.', 'warn');
+    showToast('Pro tisk PDF povolte vyskakovací okna.', 'warn');
     return;
   }
   printWindow.document.open();
@@ -654,16 +690,14 @@ function printTournamentPdf() {
   printWindow.print();
 }
 
-function truncateThroughRound(roundIndex) {
+async function truncateThroughRound(roundIndex) {
   state.rounds = state.rounds.slice(0, roundIndex + 1);
   state.currentPairings = [];
-  saveState();
-  renderAll();
-  showToast(`Kept rounds through round ${roundIndex + 1}.`);
+  await persistState(`Turnaj vrácen po kole ${roundIndex + 1}.`);
 }
 
-function reopenRound(roundIndex) {
-  const players = parsePlayers(elements.playersInput.value);
+async function reopenRound(roundIndex) {
+  const players = parsePlayers(state.playersText);
   const round = state.rounds[roundIndex];
   state.rounds = state.rounds.slice(0, roundIndex);
   state.currentPairings = round.pairings.map((pairing) => {
@@ -682,49 +716,95 @@ function reopenRound(roundIndex) {
       result: pairing.result,
     };
   });
-  saveState();
-  renderAll();
-  showToast(`Round ${roundIndex + 1} reopened.`);
+  await persistState(`Kolo ${roundIndex + 1} otevřeno k opravě.`);
 }
 
-elements.loadSampleButton.addEventListener('click', () => {
-  elements.playersInput.value = formatPlayers(samplePlayers.map(([name, ratingFinal]) => ({
-    name,
-    ratingFinal,
-  })));
-  state.rounds = [];
-  state.currentPairings = [];
-  saveState();
+function setActiveTab(tabName) {
+  elements.tabButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === tabName);
+  });
+  elements.overviewTab.classList.toggle('active', tabName === 'overview');
+  elements.roundsTab.classList.toggle('active', tabName === 'rounds');
+  elements.startlistTab.classList.toggle('active', tabName === 'startlist');
+}
+
+function toggleMenu(force) {
+  const shouldShow = typeof force === 'boolean' ? force : elements.menuPanel.hidden;
+  elements.menuPanel.hidden = !shouldShow;
+  elements.menuButton.setAttribute('aria-expanded', String(shouldShow));
+}
+
+function loginReferee() {
+  if (elements.passwordInput.value !== REFEREE_PASSWORD) {
+    showToast('Nesprávné heslo.', 'error');
+    return;
+  }
+  isReferee = true;
+  sessionStorage.setItem('osel.referee', '1');
+  elements.passwordInput.value = '';
+  toggleMenu(false);
   renderAll();
+  showToast('Rozhodčí přihlášen.');
+}
+
+function logoutReferee() {
+  isReferee = false;
+  sessionStorage.removeItem('osel.referee');
+  renderAll();
+  showToast('Rozhodčí odhlášen.');
+}
+
+elements.menuButton.addEventListener('click', () => toggleMenu());
+elements.loginButton.addEventListener('click', loginReferee);
+elements.passwordInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') loginReferee();
+});
+elements.logoutButton.addEventListener('click', logoutReferee);
+elements.refreshButton.addEventListener('click', async () => {
+  try {
+    await loadSharedState(true);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+});
+elements.tabsNav.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-tab]');
+  if (!button) return;
+  setActiveTab(button.dataset.tab);
+});
+document.addEventListener('click', (event) => {
+  if (!elements.menuPanel.hidden && !event.target.closest('.menu-wrap')) {
+    toggleMenu(false);
+  }
 });
 
+elements.loadSampleButton.addEventListener('click', () => {
+  elements.playersInput.value = formatPlayers(samplePlayers.map(([name, ratingFinal]) => ({ name, ratingFinal })));
+  state.rounds = [];
+  state.currentPairings = [];
+});
 elements.sortPlayersButton.addEventListener('click', () => {
   const players = parsePlayers(elements.playersInput.value)
     .sort((a, b) => {
       const ratingDiff = (b.ratingFinal || 0) - (a.ratingFinal || 0);
       if (ratingDiff !== 0) return ratingDiff;
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name, 'cs');
     });
   elements.playersInput.value = formatPlayers(players);
-  saveState();
-  renderAll();
 });
-
-elements.clearButton.addEventListener('click', () => {
+elements.clearButton.addEventListener('click', async () => {
+  if (!window.confirm('Opravdu vymazat celý turnaj pro všechny uživatele?')) return;
   state = { playersText: '', rounds: [], currentPairings: [] };
-  elements.playersInput.value = '';
-  saveState();
-  renderAll();
+  await persistState('Turnaj vymazán.');
 });
-
 elements.savePlayersButton.addEventListener('click', () => {
-  saveState();
-  renderAll();
-  showToast('Players saved.');
+  savePlayers().catch((error) => showToast(error.message, 'error'));
 });
-
 elements.generateButton.addEventListener('click', generatePairings);
-elements.saveRoundButton.addEventListener('click', saveRoundResults);
+elements.saveRoundButton.addEventListener('click', () => {
+  saveRoundResults().catch((error) => showToast(error.message, 'error'));
+});
+elements.currentRound.addEventListener('change', syncCurrentResults);
 elements.exportButton.addEventListener('click', exportState);
 elements.importButton.addEventListener('click', () => elements.importFileInput.click());
 elements.printButton.addEventListener('click', printTournamentPdf);
@@ -735,23 +815,22 @@ elements.exportRoundsButton.addEventListener('click', exportRoundsCsv);
 elements.downloadExportButton.addEventListener('click', downloadTournamentJson);
 elements.copyExportButton.addEventListener('click', async () => {
   await navigator.clipboard.writeText(elements.exportOutput.value);
-  showToast('Export copied.');
+  showToast('Export zkopírován.');
 });
-elements.currentRound.addEventListener('change', syncCurrentResults);
 elements.roundsHistory.addEventListener('click', (event) => {
   const reopenButton = event.target.closest('[data-reopen-round]');
   if (reopenButton) {
     const roundIndex = Number.parseInt(reopenButton.dataset.reopenRound, 10);
-    if (window.confirm(`Reopen round ${roundIndex + 1}? Later rounds will be removed.`)) {
-      reopenRound(roundIndex);
+    if (window.confirm(`Otevřít kolo ${roundIndex + 1} k opravě? Pozdější kola se odstraní.`)) {
+      reopenRound(roundIndex).catch((error) => showToast(error.message, 'error'));
     }
     return;
   }
   const truncateButton = event.target.closest('[data-truncate-round]');
   if (truncateButton) {
     const roundIndex = Number.parseInt(truncateButton.dataset.truncateRound, 10);
-    if (window.confirm(`Keep only rounds through round ${roundIndex + 1}? Later rounds will be removed.`)) {
-      truncateThroughRound(roundIndex);
+    if (window.confirm(`Vrátit turnaj po kole ${roundIndex + 1}? Pozdější kola se odstraní.`)) {
+      truncateThroughRound(roundIndex).catch((error) => showToast(error.message, 'error'));
     }
   }
 });
@@ -776,6 +855,10 @@ elements.importPlayersInput.addEventListener('change', async () => {
   }
 });
 
-loadState();
-renderAll();
 checkEngine();
+loadSharedState().catch((error) => showToast(error.message, 'error'));
+window.setInterval(() => {
+  if (!isReferee) {
+    loadSharedState().catch(() => {});
+  }
+}, 15000);

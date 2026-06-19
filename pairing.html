@@ -3,57 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Swiss pairing | sachyuh.cz</title>
-  <link rel="stylesheet" href="pairing.css?v=20260619">
+  <title>Švýcarské párování | sachyuh.cz</title>
+  <link rel="stylesheet" href="pairing.css?v=20260619-admin">
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">Local bbpPairings GUI</p>
-      <h1>Swiss pairing</h1>
+      <p class="eyebrow">Šachový turnaj</p>
+      <h1>Švýcarské párování</h1>
     </div>
-    <div class="engine-status" id="engineStatus">Checking engine...</div>
+    <div class="header-actions">
+      <div class="engine-status" id="engineStatus">Kontroluji párovací program...</div>
+      <div class="menu-wrap">
+        <button type="button" id="menuButton" class="icon-button" aria-label="Menu rozhodčího" aria-expanded="false">☰</button>
+        <div id="menuPanel" class="menu-panel" hidden>
+          <div id="loginBox">
+            <label class="field-label" for="passwordInput">Heslo rozhodčího</label>
+            <input id="passwordInput" type="password" autocomplete="current-password">
+            <button type="button" id="loginButton" class="primary">Přihlásit</button>
+          </div>
+          <div id="refereeBox" hidden>
+            <p class="menu-status">Rozhodčí přihlášen</p>
+            <button type="button" id="logoutButton">Odhlásit</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </header>
 
+  <nav class="tabs" id="tabsNav" aria-label="Zobrazení turnaje">
+    <button type="button" class="tab-button active" data-tab="overview">Přehled</button>
+    <button type="button" class="tab-button" data-tab="rounds">Výsledky kol</button>
+    <button type="button" class="tab-button" data-tab="startlist">Startovní listina</button>
+  </nav>
+
   <main class="app-shell">
-    <section class="panel players-panel" aria-labelledby="playersTitle">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">Setup</p>
-          <h2 id="playersTitle">Players</h2>
+    <section id="overviewTab" class="tab-panel active">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Aktuální stav</p>
+            <h2>Nasazení na další kolo</h2>
+          </div>
+          <button type="button" id="refreshButton">Obnovit</button>
         </div>
-        <div class="button-row">
-          <button type="button" id="loadSampleButton">Load sample</button>
-          <button type="button" id="sortPlayersButton">Sort by rating</button>
-          <button type="button" id="clearButton" class="danger">Clear</button>
-        </div>
-      </div>
+        <div id="currentRound" class="empty-state">Další kolo zatím není nasazeno.</div>
+      </section>
 
-      <label class="field-label" for="playersInput">One player per line: name;rating</label>
-      <textarea id="playersInput" spellcheck="false" rows="12"></textarea>
-      <div class="button-row">
-        <button type="button" id="savePlayersButton">Save players</button>
-        <button type="button" id="generateButton" class="primary">Generate next round</button>
-      </div>
-      <p class="hint">Pairing numbers follow the current order. Use Sort by rating before round 1 if rating is the seed order.</p>
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Průběžně</p>
+            <h2>Pořadí</h2>
+          </div>
+        </div>
+        <div id="standingsView" class="empty-state">Zatím nejsou zadaní hráči.</div>
+      </section>
     </section>
 
-    <section class="panel current-panel" aria-labelledby="currentTitle">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">Next</p>
-          <h2 id="currentTitle">Current pairings</h2>
+    <section id="roundsTab" class="tab-panel">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Archiv</p>
+            <h2>Výsledky odehraných kol</h2>
+          </div>
         </div>
-        <button type="button" id="saveRoundButton" class="primary">Save round results</button>
-      </div>
-      <div id="currentRound" class="empty-state">No pairings generated yet.</div>
+        <div id="roundsHistory" class="empty-state">Zatím není uložené žádné kolo.</div>
+      </section>
     </section>
 
-    <section class="panel history-panel" aria-labelledby="historyTitle">
+    <section id="startlistTab" class="tab-panel">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Turnaj</p>
+            <h2>Startovní listina</h2>
+          </div>
+        </div>
+        <div id="startListView" class="empty-state">Startovní listina je prázdná.</div>
+      </section>
+    </section>
+
+    <section id="adminPanel" class="panel admin-panel" hidden>
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">Tournament</p>
-          <h2 id="historyTitle">Rounds</h2>
+          <p class="eyebrow">Rozhodčí</p>
+          <h2>Správa turnaje</h2>
         </div>
         <div class="button-row">
           <button type="button" id="exportButton">Export JSON</button>
@@ -61,13 +97,33 @@
           <button type="button" id="printButton">PDF</button>
         </div>
       </div>
-      <div class="button-row tool-row" aria-label="Tournament data tools">
-        <button type="button" id="exportPlayersButton">Start list CSV</button>
-        <button type="button" id="importPlayersButton">Import start list</button>
-        <button type="button" id="exportStandingsButton">Standings CSV</button>
-        <button type="button" id="exportRoundsButton">Rounds CSV</button>
+
+      <div class="admin-grid">
+        <section>
+          <label class="field-label" for="playersInput">Hráči, jeden na řádek: jméno;rating</label>
+          <textarea id="playersInput" spellcheck="false" rows="14"></textarea>
+          <div class="button-row">
+            <button type="button" id="loadSampleButton">Načíst ukázku</button>
+            <button type="button" id="sortPlayersButton">Seřadit podle ratingu</button>
+            <button type="button" id="savePlayersButton" class="primary">Uložit hráče</button>
+            <button type="button" id="clearButton" class="danger">Vymazat turnaj</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="button-row admin-actions">
+            <button type="button" id="generateButton" class="primary">Vygenerovat další kolo</button>
+            <button type="button" id="saveRoundButton" class="primary">Uložit výsledky kola</button>
+          </div>
+          <div class="button-row tool-row" aria-label="Nástroje turnaje">
+            <button type="button" id="exportPlayersButton">Startovní listina CSV</button>
+            <button type="button" id="importPlayersButton">Import startovní listiny</button>
+            <button type="button" id="exportStandingsButton">Pořadí CSV</button>
+            <button type="button" id="exportRoundsButton">Výsledky kol CSV</button>
+          </div>
+          <p class="hint">Po opravě výsledku v minulém kole je potřeba nová další kola vygenerovat znovu.</p>
+        </section>
       </div>
-      <div id="roundsHistory" class="empty-state">No saved rounds yet.</div>
     </section>
   </main>
 
@@ -79,14 +135,14 @@
       <h2>Export JSON</h2>
       <textarea id="exportOutput" spellcheck="false" rows="12"></textarea>
       <div class="button-row">
-        <button type="button" id="downloadExportButton">Download</button>
-        <button type="button" id="copyExportButton">Copy</button>
-        <button type="submit" class="primary">Close</button>
+        <button type="button" id="downloadExportButton">Stáhnout</button>
+        <button type="button" id="copyExportButton">Kopírovat</button>
+        <button type="submit" class="primary">Zavřít</button>
       </div>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="pairing.js?v=20260619"></script>
+  <script type="module" src="pairing.js?v=20260619-admin"></script>
 </body>
 </html>

@@ -66,16 +66,28 @@ button.small-button {
   font-size: 12px;
 }
 
-textarea {
+.icon-button {
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+textarea,
+input {
   width: 100%;
-  min-height: 180px;
-  resize: vertical;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
   background: #fff;
   line-height: 1.45;
+}
+
+textarea {
+  min-height: 180px;
+  resize: vertical;
 }
 
 select {
@@ -91,9 +103,9 @@ select {
   justify-content: space-between;
   gap: 24px;
   align-items: center;
-  padding: 22px clamp(16px, 4vw, 44px);
+  padding: 18px clamp(16px, 4vw, 44px);
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, .78);
+  background: rgba(255, 255, 255, .86);
   backdrop-filter: blur(10px);
 }
 
@@ -104,6 +116,12 @@ select {
 
 .app-header h1 {
   font-size: 30px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .eyebrow {
@@ -135,12 +153,79 @@ select {
   color: var(--danger);
 }
 
+.menu-wrap {
+  position: relative;
+}
+
+.menu-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(300px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.menu-panel[hidden],
+[hidden] {
+  display: none !important;
+}
+
+.menu-panel .primary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.menu-status {
+  margin: 0 0 10px;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  width: min(1440px, calc(100% - 32px));
+  margin: 18px auto 0;
+}
+
+.tab-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.tab-button.active {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
   gap: 18px;
   width: min(1440px, calc(100% - 32px));
-  margin: 18px auto 44px;
+  margin: 12px auto 44px;
+}
+
+.tab-panel {
+  display: none;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+  gap: 18px;
+}
+
+.tab-panel.active {
+  display: grid;
+}
+
+#roundsTab,
+#startlistTab {
+  grid-template-columns: 1fr;
 }
 
 .panel {
@@ -152,8 +237,14 @@ select {
   box-shadow: var(--shadow);
 }
 
-.players-panel {
-  grid-row: span 2;
+.admin-panel {
+  border-color: rgba(15, 92, 124, .35);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 18px;
 }
 
 .panel-heading {
@@ -171,8 +262,9 @@ select {
   align-items: center;
 }
 
-.tool-row {
-  margin: -4px 0 14px;
+.tool-row,
+.admin-actions {
+  margin-bottom: 12px;
 }
 
 .field-label {
@@ -198,7 +290,9 @@ select {
 }
 
 .pairing-table,
-.round-table {
+.round-table,
+.standings-table,
+.start-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
@@ -207,7 +301,11 @@ select {
 .pairing-table th,
 .pairing-table td,
 .round-table th,
-.round-table td {
+.round-table td,
+.standings-table th,
+.standings-table td,
+.start-table th,
+.start-table td {
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
   text-align: left;
@@ -215,14 +313,18 @@ select {
 }
 
 .pairing-table th,
-.round-table th {
+.round-table th,
+.standings-table th,
+.start-table th {
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
 }
 
 .pairing-table td:first-child,
-.round-table td:first-child {
+.round-table td:first-child,
+.standings-table td:first-child,
+.start-table td:first-child {
   width: 52px;
   color: var(--muted);
 }
@@ -246,28 +348,6 @@ select {
 .round-block h3 {
   margin: 0;
   font-size: 17px;
-}
-
-.standings {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 14px;
-}
-
-.standings-row {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 72px;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--panel-soft);
-  font-size: 13px;
-}
-
-.standings-row span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 dialog {
@@ -319,27 +399,26 @@ dialog::backdrop {
 }
 
 @media (max-width: 980px) {
-  .app-header {
+  .app-header,
+  .header-actions,
+  .panel-heading {
     display: grid;
   }
 
-  .app-shell {
+  .tab-panel,
+  .admin-grid {
     grid-template-columns: 1fr;
-  }
-
-  .players-panel {
-    grid-row: auto;
   }
 }
 
 @media (max-width: 640px) {
-  .app-shell {
+  .app-shell,
+  .tabs {
     width: min(100% - 20px, 1440px);
-    margin-top: 10px;
   }
 
-  .panel-heading {
-    display: grid;
+  .tabs {
+    overflow-x: auto;
   }
 
   .round-heading {
@@ -347,7 +426,9 @@ dialog::backdrop {
   }
 
   .pairing-table,
-  .round-table {
+  .round-table,
+  .standings-table,
+  .start-table {
     font-size: 13px;
   }
 }
