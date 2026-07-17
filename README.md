@@ -1,6 +1,6 @@
 # Osel Pairing
 
-Webové GUI a malý Python server pro švýcarské párování přes oficiální `bbpPairings` engine.
+Webové GUI a malý Python server pro švýcarské párování přes oficiální `bbpPairings` engine a pro turnaje každý s každým.
 
 ## Engine
 
@@ -53,6 +53,8 @@ Response:
 ```
 
 For Linux deployment, use the Linux `bbpPairings` binary and set `BBP_PAIRINGS_EXE` to that path.
+
+`POST /api/round-robin` přijímá startovní listinu a `roundNumber`. Vrací příslušné kolo úplného jednokolového rozpisu každý s každým. Variantu lze v administraci změnit pouze před vygenerováním prvního kola; výchozí zůstává švýcarský systém.
 
 ## Import a export
 

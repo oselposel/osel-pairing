@@ -328,6 +328,10 @@ select {
   font-weight: 700;
 }
 
+#pairingSystemSelect {
+  margin-bottom: 14px;
+}
+
 .hint {
   margin: 10px 0 0;
   color: var(--muted);

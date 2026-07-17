@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Turnaj Koruna 21. 6. 2026 | sachyuh.cz</title>
+  <title>Turnaj Pučalík 19. 7. 2026 | sachyuh.cz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 <body>
   <header class="app-header">
     <div>
-      <h1>Turnaj Koruna 21. 6. 2026</h1>
+      <h1>Turnaj Pučalík 19. 7. 2026</h1>
     </div>
     <div class="header-actions">
       <div class="engine-status" id="engineStatus" hidden>Kontroluji párovací program...</div>
@@ -102,6 +102,11 @@
 
       <div class="admin-grid">
         <section>
+          <label class="field-label" for="pairingSystemSelect">Varianta nasazení</label>
+          <select id="pairingSystemSelect">
+            <option value="swiss">Švýcarský systém</option>
+            <option value="round-robin">Každý s každým</option>
+          </select>
           <label class="field-label" for="playersInput">Hráči, jeden na řádek: jméno;rating</label>
           <textarea id="playersInput" spellcheck="false" rows="14"></textarea>
           <div class="button-row">
@@ -145,6 +150,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="pairing.js?v=20260619-edit-rounds"></script>
+  <script type="module" src="pairing.js?v=20260717-round-robin"></script>
 </body>
 </html>

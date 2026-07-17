@@ -1,5 +1,6 @@
 const REFEREE_PASSWORD = '11';
 const RESULT_OPTIONS = ['1-0', '0.5-0.5', '0-1'];
+const ROUND_ROBIN_SYSTEM = 'round-robin';
 
 const elements = {
   engineStatus: document.getElementById('engineStatus'),
@@ -20,6 +21,7 @@ const elements = {
   standingsView: document.getElementById('standingsView'),
   startListView: document.getElementById('startListView'),
   playersInput: document.getElementById('playersInput'),
+  pairingSystemSelect: document.getElementById('pairingSystemSelect'),
   loadSampleButton: document.getElementById('loadSampleButton'),
   sortPlayersButton: document.getElementById('sortPlayersButton'),
   clearButton: document.getElementById('clearButton'),
@@ -67,6 +69,7 @@ let state = {
   playersText: '',
   rounds: [],
   currentPairings: [],
+  pairingSystem: 'swiss',
 };
 
 let isReferee = sessionStorage.getItem('osel.referee') === '1';
@@ -190,12 +193,18 @@ function scoreFromResult(result) {
   return [0, 0];
 }
 
+function normalizePairingSystem(value) {
+  return value === ROUND_ROBIN_SYSTEM ? ROUND_ROBIN_SYSTEM : 'swiss';
+}
+
 function getScoreMap(players, rounds) {
   const scores = Object.fromEntries(players.map((player) => [player.id, 0]));
   rounds.forEach((round) => {
     round.pairings.forEach((pairing) => {
       if (pairing.byeId) {
-        scores[pairing.byeId] = (scores[pairing.byeId] || 0) + 1;
+        if (state.pairingSystem !== ROUND_ROBIN_SYSTEM) {
+          scores[pairing.byeId] = (scores[pairing.byeId] || 0) + 1;
+        }
         return;
       }
       const [whiteScore, blackScore] = scoreFromResult(pairing.result);
@@ -400,6 +409,8 @@ function renderAdminState() {
   elements.refereeBox.hidden = !isReferee;
   if (isReferee) {
     elements.playersInput.value = state.playersText;
+    elements.pairingSystemSelect.value = normalizePairingSystem(state.pairingSystem);
+    elements.pairingSystemSelect.disabled = Boolean(state.rounds.length || state.currentPairings.length);
   }
 }
 
@@ -437,6 +448,7 @@ async function loadSharedState(showMessage = false) {
     playersText: payload.state.playersText || '',
     rounds: Array.isArray(payload.state.rounds) ? payload.state.rounds : [],
     currentPairings: Array.isArray(payload.state.currentPairings) ? payload.state.currentPairings : [],
+    pairingSystem: normalizePairingSystem(payload.state.pairingSystem),
   };
   renderAll();
   if (showMessage) {
@@ -482,14 +494,20 @@ async function generatePairings() {
   state.playersText = elements.playersInput.value;
   elements.generateButton.disabled = true;
   try {
-    const response = await fetch('/api/pairings', {
+    const isRoundRobin = state.pairingSystem === ROUND_ROBIN_SYSTEM;
+    const response = await fetch(isRoundRobin ? '/api/round-robin' : '/api/pairings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        players,
-        rounds: state.rounds,
-        expectedRounds: Math.max(state.rounds.length + 1, Math.ceil(players.length / 2)),
-      }),
+      body: JSON.stringify(isRoundRobin
+        ? {
+          players,
+          roundNumber: state.rounds.length + 1,
+        }
+        : {
+          players,
+          rounds: state.rounds,
+          expectedRounds: Math.max(state.rounds.length + 1, Math.ceil(players.length / 2)),
+        }),
     });
     const payload = await response.json();
     if (!response.ok || !payload.success) {
@@ -548,6 +566,7 @@ function tournamentExport() {
     players: parsePlayers(state.playersText),
     rounds: state.rounds,
     currentPairings: state.currentPairings,
+    pairingSystem: normalizePairingSystem(state.pairingSystem),
   };
 }
 
@@ -612,6 +631,7 @@ async function importTournament(payload) {
     playersText,
     rounds: Array.isArray(payload.rounds) ? payload.rounds : [],
     currentPairings: Array.isArray(payload.currentPairings) ? payload.currentPairings : [],
+    pairingSystem: normalizePairingSystem(payload.pairingSystem),
   };
   await persistState('Turnaj importován.');
 }
@@ -633,6 +653,7 @@ async function importPlayersFile(file) {
     playersText: formatPlayers(players),
     rounds: [],
     currentPairings: [],
+    pairingSystem: normalizePairingSystem(state.pairingSystem),
   };
   await persistState('Startovní listina importována.');
 }
@@ -839,6 +860,11 @@ elements.loadSampleButton.addEventListener('click', () => {
   state.rounds = [];
   state.currentPairings = [];
 });
+elements.pairingSystemSelect.addEventListener('change', () => {
+  state.playersText = elements.playersInput.value;
+  state.pairingSystem = normalizePairingSystem(elements.pairingSystemSelect.value);
+  persistState('Varianta nasazení uložena.').catch((error) => showToast(error.message, 'error'));
+});
 elements.sortPlayersButton.addEventListener('click', () => {
   const players = parsePlayers(elements.playersInput.value)
     .sort((a, b) => {
@@ -850,7 +876,7 @@ elements.sortPlayersButton.addEventListener('click', () => {
 });
 elements.clearButton.addEventListener('click', async () => {
   if (!window.confirm('Opravdu vymazat celý turnaj pro všechny uživatele?')) return;
-  state = { playersText: '', rounds: [], currentPairings: [] };
+  state = { playersText: '', rounds: [], currentPairings: [], pairingSystem: 'swiss' };
   await persistState('Turnaj vymazán.');
 });
 elements.savePlayersButton.addEventListener('click', () => {

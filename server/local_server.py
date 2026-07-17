@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from bbp_bridge import BbpPairingError, generate_pairings, resolve_bbp_executable
+from round_robin import RoundRobinPairingError, generate_round_robin_pairings
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +17,12 @@ EMPTY_STATE = {
     "playersText": "",
     "rounds": [],
     "currentPairings": [],
+    "pairingSystem": "swiss",
 }
+
+
+def normalize_pairing_system(value):
+    return "round-robin" if value == "round-robin" else "swiss"
 
 
 class LocalPairingHandler(SimpleHTTPRequestHandler):
@@ -50,6 +56,7 @@ class LocalPairingHandler(SimpleHTTPRequestHandler):
             "playersText": str(payload.get("playersText") or ""),
             "rounds": payload.get("rounds") if isinstance(payload.get("rounds"), list) else [],
             "currentPairings": payload.get("currentPairings") if isinstance(payload.get("currentPairings"), list) else [],
+            "pairingSystem": normalize_pairing_system(payload.get("pairingSystem")),
         }
 
     def write_tournament_state(self, payload):
@@ -57,6 +64,7 @@ class LocalPairingHandler(SimpleHTTPRequestHandler):
             "playersText": str(payload.get("playersText") or ""),
             "rounds": payload.get("rounds") if isinstance(payload.get("rounds"), list) else [],
             "currentPairings": payload.get("currentPairings") if isinstance(payload.get("currentPairings"), list) else [],
+            "pairingSystem": normalize_pairing_system(payload.get("pairingSystem")),
         }
         STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = STATE_PATH.with_suffix(".tmp")
@@ -109,6 +117,18 @@ class LocalPairingHandler(SimpleHTTPRequestHandler):
                 self.send_json(200, {"success": True, "state": state})
             except json.JSONDecodeError:
                 self.send_json(400, {"success": False, "error": "Neplatný JSON."})
+            except Exception as exc:
+                self.send_json(500, {"success": False, "error": str(exc)})
+            return
+
+        if path == "/api/round-robin":
+            try:
+                payload = self.read_json_body()
+                self.send_json(200, generate_round_robin_pairings(payload))
+            except json.JSONDecodeError:
+                self.send_json(400, {"success": False, "error": "Neplatný JSON."})
+            except RoundRobinPairingError as exc:
+                self.send_json(422, {"success": False, "error": str(exc)})
             except Exception as exc:
                 self.send_json(500, {"success": False, "error": str(exc)})
             return
