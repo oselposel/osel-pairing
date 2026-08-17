@@ -3,7 +3,7 @@ import {
   buildStandings,
   formatTieBreak,
   scoreFromResult,
-} from './standings.mjs';
+} from './standings.mjs?v=20260817-tiebreak-order';
 
 const REFEREE_PASSWORD = '11';
 const RESULT_OPTIONS = ['1-0', '0.5-0.5', '0-1'];
@@ -200,6 +200,10 @@ function getStandings(players) {
   return buildStandings(players, state.rounds, state.pairingSystem);
 }
 
+function formatOptionalTieBreak(value) {
+  return value === null || value === undefined ? '-' : formatTieBreak(value);
+}
+
 function renderStandings(players) {
   const standings = getStandings(players);
   if (!standings.length) {
@@ -211,7 +215,7 @@ function renderStandings(players) {
   elements.standingsView.innerHTML = `
     <table class="standings-table">
       <thead>
-        <tr><th>#</th><th>Hráč</th><th>Body</th><th>Buchholz</th><th>Buchholz -1</th><th>SB</th><th>Výhry</th><th>Rating</th></tr>
+        <tr><th>#</th><th>Hráč</th><th>Body</th><th>Vzájemný</th><th>Buchholz -1</th><th>Buchholz</th><th>SB</th><th>Výhry</th><th>Rating</th></tr>
       </thead>
       <tbody>
         ${standings.map((player) => `
@@ -219,8 +223,9 @@ function renderStandings(players) {
             <td>${player.rank}</td>
             <td>${escapeHtml(player.name)}</td>
             <td><strong>${player.score}</strong></td>
-            <td>${formatTieBreak(player.buchholz)}</td>
+            <td>${formatOptionalTieBreak(player.directEncounter)}</td>
             <td>${formatTieBreak(player.buchholzCut1)}</td>
+            <td>${formatTieBreak(player.buchholz)}</td>
             <td>${formatTieBreak(player.sonnebornBerger)}</td>
             <td>${player.wins}</td>
             <td>${player.ratingFinal}</td>
@@ -563,13 +568,14 @@ function exportPlayersCsv() {
 
 function exportStandingsCsv() {
   const rows = [
-    ['poradi', 'jmeno', 'body', 'buchholz', 'buchholz_minus_1', 'sonneborn_berger', 'vyhry', 'rating'],
+    ['poradi', 'jmeno', 'body', 'vzajemny_zapas', 'buchholz_minus_1', 'buchholz', 'sonneborn_berger', 'vyhry', 'rating'],
     ...getStandings(parsePlayers(state.playersText)).map((player) => [
       player.rank,
       player.name,
       player.score,
-      formatTieBreak(player.buchholz),
+      formatOptionalTieBreak(player.directEncounter),
       formatTieBreak(player.buchholzCut1),
+      formatTieBreak(player.buchholz),
       formatTieBreak(player.sonnebornBerger),
       player.wins,
       player.ratingFinal,
@@ -669,9 +675,9 @@ function buildPrintDocument() {
       </table>
       <h2>Pořadí</h2>
       <table>
-        <thead><tr><th>#</th><th>Hráč</th><th>Body</th><th>Buchholz</th><th>Buchholz -1</th><th>SB</th><th>Výhry</th><th>Rating</th></tr></thead>
+        <thead><tr><th>#</th><th>Hráč</th><th>Body</th><th>Vzájemný</th><th>Buchholz -1</th><th>Buchholz</th><th>SB</th><th>Výhry</th><th>Rating</th></tr></thead>
         <tbody>
-          ${standings.map((player) => `<tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.score}</td><td>${formatTieBreak(player.buchholz)}</td><td>${formatTieBreak(player.buchholzCut1)}</td><td>${formatTieBreak(player.sonnebornBerger)}</td><td>${player.wins}</td><td>${player.ratingFinal}</td></tr>`).join('')}
+          ${standings.map((player) => `<tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.score}</td><td>${formatOptionalTieBreak(player.directEncounter)}</td><td>${formatTieBreak(player.buchholzCut1)}</td><td>${formatTieBreak(player.buchholz)}</td><td>${formatTieBreak(player.sonnebornBerger)}</td><td>${player.wins}</td><td>${player.ratingFinal}</td></tr>`).join('')}
         </tbody>
       </table>
       <h2 class="page-break">Výsledky kol</h2>

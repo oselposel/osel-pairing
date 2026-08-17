@@ -31,6 +31,7 @@ function getPlayerResults(players, rounds, scores) {
     games: [],
     opponents: [],
     direct: {},
+    directGames: {},
   }]));
 
   rounds.forEach((round) => {
@@ -52,6 +53,8 @@ function getPlayerResults(players, rounds, scores) {
       black.games.push({ opponentId: pairing.whiteId, score: blackScore });
       white.direct[pairing.blackId] = (white.direct[pairing.blackId] || 0) + whiteScore;
       black.direct[pairing.whiteId] = (black.direct[pairing.whiteId] || 0) + blackScore;
+      white.directGames[pairing.blackId] = (white.directGames[pairing.blackId] || 0) + 1;
+      black.directGames[pairing.whiteId] = (black.directGames[pairing.whiteId] || 0) + 1;
 
       if (whiteScore === 1) {
         white.wins += 1;
@@ -88,6 +91,58 @@ function compareTieBreak(a, b, field) {
   return 0;
 }
 
+function compareOptionalTieBreak(values, a, b) {
+  if (!Object.hasOwn(values, a.id) || !Object.hasOwn(values, b.id)) {
+    return 0;
+  }
+  const diff = values[b.id] - values[a.id];
+  if (Math.abs(diff) > 0.0001) return diff;
+  return 0;
+}
+
+function getScoreGroups(players, scores) {
+  const groups = new Map();
+  players.forEach((player) => {
+    const score = scores[player.id] || 0;
+    const key = String(score);
+    groups.set(key, [...(groups.get(key) || []), player]);
+  });
+  return [...groups.values()];
+}
+
+function hasDirectGame(result, opponentId) {
+  return (result?.directGames?.[opponentId] || 0) > 0;
+}
+
+function getDirectEncounterValues(players, scores, results) {
+  const values = {};
+  getScoreGroups(players, scores).forEach((group) => {
+    if (group.length < 2) {
+      return;
+    }
+
+    const isComplete = group.every((player, playerIndex) => group.every((opponent, opponentIndex) => {
+      if (playerIndex === opponentIndex) {
+        return true;
+      }
+      return hasDirectGame(results[player.id], opponent.id);
+    }));
+    if (!isComplete) {
+      return;
+    }
+
+    group.forEach((player) => {
+      values[player.id] = group.reduce((sum, opponent) => {
+        if (opponent.id === player.id) {
+          return sum;
+        }
+        return sum + (results[player.id]?.direct?.[opponent.id] || 0);
+      }, 0);
+    });
+  });
+  return values;
+}
+
 export function formatTieBreak(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
@@ -95,6 +150,7 @@ export function formatTieBreak(value) {
 export function buildStandings(players, rounds, pairingSystem = 'swiss') {
   const scores = getScoreMap(players, rounds, pairingSystem);
   const results = getPlayerResults(players, rounds, scores);
+  const directEncounterValues = getDirectEncounterValues(players, scores, results);
   return [...players]
     .sort((a, b) => {
       const scoreDiff = (scores[b.id] || 0) - (scores[a.id] || 0);
@@ -102,14 +158,14 @@ export function buildStandings(players, rounds, pairingSystem = 'swiss') {
 
       const aStats = results[a.id] || {};
       const bStats = results[b.id] || {};
-      const buchholzDiff = compareTieBreak(aStats, bStats, 'buchholz');
-      if (buchholzDiff !== 0) return buchholzDiff;
+      const directDiff = compareOptionalTieBreak(directEncounterValues, a, b);
+      if (directDiff !== 0) return directDiff;
       const buchholzCut1Diff = compareTieBreak(aStats, bStats, 'buchholzCut1');
       if (buchholzCut1Diff !== 0) return buchholzCut1Diff;
+      const buchholzDiff = compareTieBreak(aStats, bStats, 'buchholz');
+      if (buchholzDiff !== 0) return buchholzDiff;
       const sonnebornBergerDiff = compareTieBreak(aStats, bStats, 'sonnebornBerger');
       if (sonnebornBergerDiff !== 0) return sonnebornBergerDiff;
-      const directDiff = (bStats.direct?.[a.id] || 0) - (aStats.direct?.[b.id] || 0);
-      if (Math.abs(directDiff) > 0.0001) return directDiff;
       const winsDiff = compareTieBreak(aStats, bStats, 'wins');
       if (winsDiff !== 0) return winsDiff;
       const ratingDiff = (b.ratingFinal || 0) - (a.ratingFinal || 0);
@@ -122,6 +178,7 @@ export function buildStandings(players, rounds, pairingSystem = 'swiss') {
       name: player.name,
       ratingFinal: player.ratingFinal || 0,
       score: scores[player.id] || 0,
+      directEncounter: Object.hasOwn(directEncounterValues, player.id) ? directEncounterValues[player.id] : null,
       buchholz: results[player.id]?.buchholz || 0,
       buchholzCut1: results[player.id]?.buchholzCut1 || 0,
       sonnebornBerger: results[player.id]?.sonnebornBerger || 0,

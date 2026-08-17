@@ -74,14 +74,16 @@ Import startovní listiny z CSV úmyslně maže uložená kola, protože ID hrá
 Pořadí se řadí podle těchto kritérií:
 
 1. body
-2. Buchholz
+2. vzájemný zápas, pokud je pro bodovou skupinu vyhodnotitelný
 3. zkrácený Buchholz bez nejslabšího soupeře
-4. Sonnenborn-Berger
-5. vzájemný zápas
+4. Buchholz
+5. Sonnenborn-Berger
 6. počet výher
 7. rating
 8. jméno
 
+Vzájemný zápas se použije u dvou hráčů, pokud spolu hráli. U větší skupiny se použije jen tehdy,
+pokud v ní má každý odehráno s každým; jinak se toto kritérium přeskočí.
 Bye se u švýcarského systému počítá jako bod, ale nezapočítává se jako soupeř do pomocných hodnocení.
 U varianty každý s každým se volno do bodů ani pomocných hodnocení nepočítá.
 

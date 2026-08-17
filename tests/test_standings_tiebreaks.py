@@ -64,7 +64,67 @@ process.stdout.write(JSON.stringify(standings));
 
 
 class StandingsTieBreakTests(unittest.TestCase):
-    def test_buchholz_decides_before_rating_when_scores_are_equal(self):
+    def test_direct_encounter_decides_before_buchholz_when_available(self):
+        players = [
+            {"id": "a", "name": "A", "ratingFinal": 1000},
+            {"id": "b", "name": "B", "ratingFinal": 2500},
+            {"id": "c", "name": "C", "ratingFinal": 2400},
+        ]
+        rounds = [
+            {"pairings": [
+                {"whiteId": "a", "blackId": "b", "result": "1-0"},
+                {"byeId": "c", "result": "bye"},
+            ]},
+            {"pairings": [
+                {"whiteId": "c", "blackId": "a", "result": "1-0"},
+                {"byeId": "b", "result": "bye"},
+            ]},
+        ]
+
+        standings = build_standings(players, rounds)
+        a = next(player for player in standings if player["id"] == "a")
+        b = next(player for player in standings if player["id"] == "b")
+
+        self.assertEqual(a["score"], b["score"])
+        self.assertGreater(a["directEncounter"], b["directEncounter"])
+        self.assertLess(a["rank"], b["rank"])
+
+    def test_buchholz_cut_1_decides_before_full_buchholz(self):
+        players = [
+            {"id": "a", "name": "A", "ratingFinal": 1000},
+            {"id": "b", "name": "B", "ratingFinal": 2500},
+            {"id": "c", "name": "C", "ratingFinal": 2400},
+            {"id": "d", "name": "D", "ratingFinal": 2300},
+            {"id": "e", "name": "E", "ratingFinal": 2200},
+            {"id": "f", "name": "F", "ratingFinal": 2100},
+            {"id": "x", "name": "X", "ratingFinal": 2000},
+            {"id": "y", "name": "Y", "ratingFinal": 1900},
+        ]
+        rounds = [
+            {"pairings": [
+                {"whiteId": "a", "blackId": "c", "result": "1-0"},
+                {"whiteId": "b", "blackId": "e", "result": "0.5-0.5"},
+                {"whiteId": "d", "blackId": "x", "result": "1-0"},
+                {"whiteId": "f", "blackId": "y", "result": "1-0"},
+            ]},
+            {"pairings": [
+                {"whiteId": "d", "blackId": "a", "result": "1-0"},
+                {"whiteId": "b", "blackId": "f", "result": "0.5-0.5"},
+                {"whiteId": "e", "blackId": "x", "result": "1-0"},
+                {"whiteId": "y", "blackId": "c", "result": "1-0"},
+            ]},
+        ]
+
+        standings = build_standings(players, rounds)
+        a = next(player for player in standings if player["id"] == "a")
+        b = next(player for player in standings if player["id"] == "b")
+
+        self.assertEqual(a["score"], b["score"])
+        self.assertGreater(b["buchholz"], a["buchholz"])
+        self.assertGreater(a["buchholzCut1"], b["buchholzCut1"])
+        self.assertLess(a["rank"], b["rank"])
+
+    def test_buchholz_cut_1_decides_before_rating_when_scores_are_equal(self):
         players = [
             {"id": "low", "name": "Low rated", "ratingFinal": 1000},
             {"id": "high", "name": "High rated", "ratingFinal": 2500},
@@ -91,7 +151,7 @@ class StandingsTieBreakTests(unittest.TestCase):
         high = next(player for player in standings if player["id"] == "high")
 
         self.assertEqual(low["score"], high["score"])
-        self.assertGreater(low["buchholz"], high["buchholz"])
+        self.assertGreater(low["buchholzCut1"], high["buchholzCut1"])
         self.assertLess(low["ratingFinal"], high["ratingFinal"])
         self.assertLess(low["rank"], high["rank"])
 
