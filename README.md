@@ -69,6 +69,22 @@ Rozhodčí může exportovat:
 JSON import obnoví startovní listinu, uložená kola i aktuálně vygenerované neuložené kolo.
 Import startovní listiny z CSV úmyslně maže uložená kola, protože ID hráčů se odvozují ze jmen.
 
+## Pořadí
+
+Pořadí se řadí podle těchto kritérií:
+
+1. body
+2. Buchholz
+3. zkrácený Buchholz bez nejslabšího soupeře
+4. Sonnenborn-Berger
+5. vzájemný zápas
+6. počet výher
+7. rating
+8. jméno
+
+Bye se u švýcarského systému počítá jako bod, ale nezapočítává se jako soupeř do pomocných hodnocení.
+U varianty každý s každým se volno do bodů ani pomocných hodnocení nepočítá.
+
 ## Tests
 
 The integration tests run simulated tournaments against the real `bbpPairings` engine.

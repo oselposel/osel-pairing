@@ -346,6 +346,13 @@ select {
   background: var(--panel-soft);
 }
 
+#currentRound,
+#roundsHistory,
+#standingsView,
+#startListView {
+  overflow-x: auto;
+}
+
 .pairing-table,
 .round-table,
 .standings-table,

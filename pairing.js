@@ -1,6 +1,12 @@
+import {
+  ROUND_ROBIN_SYSTEM,
+  buildStandings,
+  formatTieBreak,
+  scoreFromResult,
+} from './standings.mjs';
+
 const REFEREE_PASSWORD = '11';
 const RESULT_OPTIONS = ['1-0', '0.5-0.5', '0-1'];
-const ROUND_ROBIN_SYSTEM = 'round-robin';
 
 const elements = {
   engineStatus: document.getElementById('engineStatus'),
@@ -186,52 +192,12 @@ function playerNameById(players, id) {
   return players.find((player) => player.id === id)?.name || id;
 }
 
-function scoreFromResult(result) {
-  if (result === '1-0') return [1, 0];
-  if (result === '0-1') return [0, 1];
-  if (result === '0.5-0.5') return [0.5, 0.5];
-  return [0, 0];
-}
-
 function normalizePairingSystem(value) {
   return value === ROUND_ROBIN_SYSTEM ? ROUND_ROBIN_SYSTEM : 'swiss';
 }
 
-function getScoreMap(players, rounds) {
-  const scores = Object.fromEntries(players.map((player) => [player.id, 0]));
-  rounds.forEach((round) => {
-    round.pairings.forEach((pairing) => {
-      if (pairing.byeId) {
-        if (state.pairingSystem !== ROUND_ROBIN_SYSTEM) {
-          scores[pairing.byeId] = (scores[pairing.byeId] || 0) + 1;
-        }
-        return;
-      }
-      const [whiteScore, blackScore] = scoreFromResult(pairing.result);
-      scores[pairing.whiteId] = (scores[pairing.whiteId] || 0) + whiteScore;
-      scores[pairing.blackId] = (scores[pairing.blackId] || 0) + blackScore;
-    });
-  });
-  return scores;
-}
-
 function getStandings(players) {
-  const scores = getScoreMap(players, state.rounds);
-  return [...players]
-    .sort((a, b) => {
-      const scoreDiff = (scores[b.id] || 0) - (scores[a.id] || 0);
-      if (scoreDiff !== 0) return scoreDiff;
-      const ratingDiff = (b.ratingFinal || 0) - (a.ratingFinal || 0);
-      if (ratingDiff !== 0) return ratingDiff;
-      return a.name.localeCompare(b.name, 'cs');
-    })
-    .map((player, index) => ({
-      rank: index + 1,
-      id: player.id,
-      name: player.name,
-      ratingFinal: player.ratingFinal || 0,
-      score: scores[player.id] || 0,
-    }));
+  return buildStandings(players, state.rounds, state.pairingSystem);
 }
 
 function renderStandings(players) {
@@ -245,15 +211,19 @@ function renderStandings(players) {
   elements.standingsView.innerHTML = `
     <table class="standings-table">
       <thead>
-        <tr><th>#</th><th>Hráč</th><th>Rating</th><th>Body</th></tr>
+        <tr><th>#</th><th>Hráč</th><th>Body</th><th>Buchholz</th><th>Buchholz -1</th><th>SB</th><th>Výhry</th><th>Rating</th></tr>
       </thead>
       <tbody>
         ${standings.map((player) => `
           <tr>
             <td>${player.rank}</td>
             <td>${escapeHtml(player.name)}</td>
-            <td>${player.ratingFinal}</td>
             <td><strong>${player.score}</strong></td>
+            <td>${formatTieBreak(player.buchholz)}</td>
+            <td>${formatTieBreak(player.buchholzCut1)}</td>
+            <td>${formatTieBreak(player.sonnebornBerger)}</td>
+            <td>${player.wins}</td>
+            <td>${player.ratingFinal}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -593,8 +563,17 @@ function exportPlayersCsv() {
 
 function exportStandingsCsv() {
   const rows = [
-    ['poradi', 'jmeno', 'rating', 'body'],
-    ...getStandings(parsePlayers(state.playersText)).map((player) => [player.rank, player.name, player.ratingFinal, player.score]),
+    ['poradi', 'jmeno', 'body', 'buchholz', 'buchholz_minus_1', 'sonneborn_berger', 'vyhry', 'rating'],
+    ...getStandings(parsePlayers(state.playersText)).map((player) => [
+      player.rank,
+      player.name,
+      player.score,
+      formatTieBreak(player.buchholz),
+      formatTieBreak(player.buchholzCut1),
+      formatTieBreak(player.sonnebornBerger),
+      player.wins,
+      player.ratingFinal,
+    ]),
   ];
   downloadText(`poradi-${safeTimestamp()}.csv`, rows.map((row) => row.map(csvEscape).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
@@ -690,9 +669,9 @@ function buildPrintDocument() {
       </table>
       <h2>Pořadí</h2>
       <table>
-        <thead><tr><th>#</th><th>Hráč</th><th>Rating</th><th>Body</th></tr></thead>
+        <thead><tr><th>#</th><th>Hráč</th><th>Body</th><th>Buchholz</th><th>Buchholz -1</th><th>SB</th><th>Výhry</th><th>Rating</th></tr></thead>
         <tbody>
-          ${standings.map((player) => `<tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.ratingFinal}</td><td>${player.score}</td></tr>`).join('')}
+          ${standings.map((player) => `<tr><td>${player.rank}</td><td>${escapeHtml(player.name)}</td><td>${player.score}</td><td>${formatTieBreak(player.buchholz)}</td><td>${formatTieBreak(player.buchholzCut1)}</td><td>${formatTieBreak(player.sonnebornBerger)}</td><td>${player.wins}</td><td>${player.ratingFinal}</td></tr>`).join('')}
         </tbody>
       </table>
       <h2 class="page-break">Výsledky kol</h2>
